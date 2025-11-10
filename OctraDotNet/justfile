@@ -1,0 +1,14 @@
+build:
+  cmake -S . -B build/debug -DCMAKE_BUILD_TYPE=Debug
+  cmake --build build/debug
+  dotnet build
+  cp ./build/debug/liboctradotnet.so ./bin/Debug/net10.0/
+
+run:
+  dotnet run
+
+clean:
+  rm -rf build
+  rm -rf bin
+  rm -rf obj
+

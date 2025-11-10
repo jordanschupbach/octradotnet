@@ -1,0 +1,79 @@
+name: Test
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+env:
+  CTEST_OUTPUT_ON_FAILURE: 1
+  CPM_SOURCE_CACHE: ${{ github.workspace }}/cpm_modules
+
+jobs:
+  install:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: actions/cache@v3
+        with:
+          path: ${{ github.workspace }}/cpm_modules
+          key: ${{ github.workflow }}-cpm-modules-${{ hashFiles('**/CMakeLists.txt', '**/*.cmake') }}
+
+      - name: Setup cmake
+        uses: jwlawson/actions-setup-cmake@v1.13
+        with:
+          cmake-version: 3.18.4
+
+      - name: test and install local build
+        run: |
+          cmake -S test -B build/local
+          cmake --build build/local
+          cmake --build build/local --target test
+          sudo cmake --install build/local
+
+      - name: test installed build
+        run: |
+          test -e /usr/local/share/cmake/header_only-1.0/header_onlyConfig.cmake # test if header only library's CMake configs are installed to a ABI-independent dir.
+          cmake -S test -B build/installed -D TEST_INSTALLED_VERSION=1
+          cmake --build build/installed
+          cmake --build build/installed --target test
+
+  package:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: actions/cache@v3
+        with:
+          path: ${{ github.workspace }}/cpm_modules
+          key: ${{ github.workflow }}-cpm-modules-${{ hashFiles('**/CMakeLists.txt', '**/*.cmake') }}
+
+      - name: Setup cmake
+        uses: jwlawson/actions-setup-cmake@v1.13
+        with:
+          cmake-version: 3.18.4
+
+      - name: build for packaging
+        run: |
+          cmake -S test -B build/local -DTEST_CPACK=YES
+          cmake --build build/local
+          cmake --build build/local --target test
+          cd build/local
+          cpack -G DEB .
+          dpkg -I *deb | grep "Maintainer: Foo Bar <foo@bar.local>"
+          sudo -E dpkg -i *.deb
+          
+      - name: check if we can explicitly set the runtime destination
+        run: test -e /usr/lib/libruntime_destination_dependency.a
+
+      - name: test installed build
+        run: |
+          cmake -S test -B build/installed -D TEST_INSTALLED_VERSION=1
+          cmake --build build/installed
+          cmake --build build/installed --target test

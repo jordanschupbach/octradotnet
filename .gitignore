@@ -1,0 +1,5 @@
+OctraDotNet/build
+OctraDotNet/bin
+OctraDotNet/obj
+.direnv
+.cache
